@@ -1,0 +1,100 @@
+commit f5dfbfa418675ca862408e4fb2240b21dd07d558
+Author: srs5694 <srs5694@users.sourceforge.net>
+Date:   Thu Feb 14 20:47:14 2013 -0500
+
+    Change to alignment code in sgdisk.
+
+diff --git a/gdisk_test.sh b/gdisk_test.sh
+index e567d4c..8c5d800 100755
+--- a/gdisk_test.sh
++++ b/gdisk_test.sh
+@@ -147,7 +147,7 @@ EOF
+ 		;;
+ 
+ 		sgdisk)
+-			$SGDISK_BIN $TEMP_DISK -${OPT_NEW}=1 -${OPT_CHANGE_NAME}=1:"${TEST_PART_DEFAULT_NAME}"
++			$SGDISK_BIN $TEMP_DISK -${OPT_NEW} 1 -${OPT_CHANGE_NAME} 1:"${TEST_PART_DEFAULT_NAME}"
+ 		;;
+ 	esac
+ 
+@@ -171,7 +171,7 @@ EOF
+ 		;;
+ 
+ 		sgdisk)
+-			$SGDISK_BIN $TEMP_DISK -${OPT_CHANGE_NAME}=1:${TEST_PART_NEWNAME}
++			$SGDISK_BIN $TEMP_DISK -${OPT_CHANGE_NAME} 1:${TEST_PART_NEWNAME}
+ 		;;
+ 	esac
+ 
+@@ -195,7 +195,7 @@ EOF
+ 		;;
+ 
+ 		sgdisk)
+-			$SGDISK_BIN $TEMP_DISK -${OPT_CHANGE_TYPE}=1:${TEST_PART_NEWTYPE}
++			$SGDISK_BIN $TEMP_DISK -${OPT_CHANGE_TYPE} 1:${TEST_PART_NEWTYPE}
+ 		;;
+ 	esac
+ 
+@@ -219,7 +219,7 @@ echo ""
+ 		;;
+ 
+ 		sgdisk)
+-			$SGDISK_BIN $TEMP_DISK -${OPT_BACKUP}=${GPT_BACKUP_FILENAME}
++			$SGDISK_BIN $TEMP_DISK -${OPT_BACKUP} ${GPT_BACKUP_FILENAME}
+ 		;;
+ 	esac
+ 
+@@ -248,7 +248,7 @@ EOF
+ 		;;
+ 
+ 		sgdisk)
+-			$SGDISK_BIN $TEMP_DISK -${OPT_DELETE}=1
++			$SGDISK_BIN $TEMP_DISK -${OPT_DELETE} 1
+ 		;;
+ 	esac
+ 
+diff --git a/gpt.cc b/gpt.cc
+index 40dd55e..d692561 100644
+--- a/gpt.cc
++++ b/gpt.cc
+@@ -2088,7 +2088,7 @@ uint64_t GPTData::FindFirstInLargest(void) {
+ } // GPTData::FindFirstInLargest()
+ 
+ // Find the last available block on the disk.
+-// Returns 0 if there are no available partitions
++// Returns 0 if there are no available sectors
+ uint64_t GPTData::FindLastAvailable(void) {
+    uint64_t last;
+    uint32_t i;
+diff --git a/gptcl.cc b/gptcl.cc
+index 31d05b5..af83eb5 100644
+--- a/gptcl.cc
++++ b/gptcl.cc
+@@ -280,6 +280,7 @@ int GPTDataCL::DoOptions(int argc, char* argv[]) {
+                   if (partNum < 0)
+                      partNum = FindFirstFreePart();
+                   low = FindFirstInLargest();
++                  Align(&low);
+                   high = FindLastInFree(low);
+                   startSector = IeeeToInt(GetString(newPartInfo, 2), sSize, low, high, low);
+                   endSector = IeeeToInt(GetString(newPartInfo, 3), sSize, startSector, high, high);
+@@ -295,6 +296,7 @@ int GPTDataCL::DoOptions(int argc, char* argv[]) {
+                case 'N':
+                   JustLooking(0);
+                   startSector = FindFirstInLargest();
++                  Align(&startSector);
+                   endSector = FindLastInFree(startSector);
+                   if (largestPartNum < 0)
+                      largestPartNum = FindFirstFreePart();
+diff --git a/gptpart.cc b/gptpart.cc
+index bbd28ae..4b8c369 100644
+--- a/gptpart.cc
++++ b/gptpart.cc
+@@ -114,7 +114,6 @@ void GPTPart::SetName(const string & theName) {
+ // Set the name for a partition to theName, using a Unicode string as
+ // input.
+ void GPTPart::SetName(const UnicodeString & theName) {
+-   cout << "Entering GPTPart::SetName(const UnicodeString...)\n";
+    if (theName.isBogus()) {
+       cerr << "Bogus UTF-16 name found in GPTPart::SetName()! Name not changed!\n";
+    } else {
